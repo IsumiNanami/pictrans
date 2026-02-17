@@ -1,65 +1,210 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback } from 'react';
+import { Palette, RefreshCw, Wand2 } from 'lucide-react';
+import { Dropzone } from '@/components/Dropzone';
+import { ProcessingStatus } from '@/components/ProcessingStatus';
+import { ImageComparison } from '@/components/ImageComparison';
+import { useImageProcess } from '@/hooks/useImageProcess';
+import { STYLE_OPTIONS, type StyleType } from '@/types/jimeng';
 
 export default function Home() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<StyleType>('anime');
+  const [strength, setStrength] = useState(0.7);
+  const [customPrompt, setCustomPrompt] = useState('');
+
+  const { state, process, isProcessing, reset } = useImageProcess();
+
+  const handleFileSelect = useCallback((file: File) => {
+    setSelectedFile(file);
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setSelectedFile(null);
+    reset();
+  }, [reset]);
+
+  const handleProcess = useCallback(() => {
+    if (!selectedFile) return;
+
+    process({
+      file: selectedFile,
+      style: selectedStyle,
+      prompt: customPrompt || undefined,
+      strength,
+    });
+  }, [selectedFile, selectedStyle, customPrompt, strength, process]);
+
+  const handleNewImage = useCallback(() => {
+    setSelectedFile(null);
+    setCustomPrompt('');
+    reset();
+  }, [reset]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* 标题 */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="p-3 bg-indigo-100 rounded-2xl">
+              <Palette className="w-8 h-8 text-indigo-600" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-800">
+              AI 艺术加工工坊
+            </h1>
+          </div>
+          <p className="text-gray-600 text-lg">
+            上传图片，选择风格，让 AI 为您创作独特的艺术作品
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* 主内容区 */}
+        <div className="space-y-8">
+          {/* 处理成功后显示对比 */}
+          {state.status === 'success' && state.originalUrl && state.resultUrl ? (
+            <div className="space-y-6">
+              <ImageComparison
+                originalUrl={state.originalUrl}
+                resultUrl={state.resultUrl}
+              />
+              <div className="flex justify-center">
+                <button
+                  onClick={handleNewImage}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  处理新图片
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* 上传区域 */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <Dropzone
+                  onFileSelect={handleFileSelect}
+                  disabled={isProcessing}
+                  previewUrl={
+                    selectedFile ? URL.createObjectURL(selectedFile) : undefined
+                  }
+                  onClear={handleClear}
+                />
+              </div>
+
+              {/* 风格选择 */}
+              {selectedFile && (
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-6">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    选择艺术风格
+                  </h2>
+
+                  {/* 风格网格 */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style.value}
+                        onClick={() => setSelectedStyle(style.value)}
+                        disabled={isProcessing}
+                        className={`
+                          p-4 rounded-xl text-left transition-all
+                          ${
+                            selectedStyle === style.value
+                              ? 'bg-indigo-50 border-2 border-indigo-500 ring-2 ring-indigo-200'
+                              : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }
+                          ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+                        `}
+                      >
+                        <p className="font-medium text-gray-800">{style.label}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {style.description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 风格强度 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      风格强度: {Math.round(strength * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={strength * 100}
+                      onChange={(e) => setStrength(Number(e.target.value) / 100)}
+                      disabled={isProcessing}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>轻微</span>
+                      <span>强烈</span>
+                    </div>
+                  </div>
+
+                  {/* 自定义提示词 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      自定义提示词 (可选)
+                    </label>
+                    <textarea
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      disabled={isProcessing}
+                      placeholder="描述您想要的效果，例如：温暖的色调，梦幻的氛围..."
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none disabled:opacity-50"
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* 开始处理按钮 */}
+                  <button
+                    onClick={handleProcess}
+                    disabled={isProcessing}
+                    className={`
+                      w-full flex items-center justify-center gap-2 py-4 rounded-xl font-medium text-lg transition-all
+                      ${
+                        isProcessing
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl'
+                      }
+                    `}
+                  >
+                    <Wand2 className="w-5 h-5" />
+                    {isProcessing ? '处理中...' : '开始艺术加工'}
+                  </button>
+                </div>
+              )}
+
+              {/* 处理状态 */}
+              {state.status !== 'idle' && state.status !== 'success' && (
+                <ProcessingStatus state={state} />
+              )}
+
+              {/* 错误重试 */}
+              {state.status === 'error' && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleProcess}
+                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    重新尝试
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      </main>
-    </div>
+
+        {/* 页脚 */}
+        <footer className="mt-16 text-center text-sm text-gray-500">
+          <p>由 AI 驱动 · 支持多种艺术风格转换</p>
+        </footer>
+      </div>
+    </main>
   );
 }
