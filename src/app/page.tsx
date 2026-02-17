@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Palette, RefreshCw, Wand2 } from 'lucide-react';
+import { Palette, RefreshCw, Wand2, Loader2 } from 'lucide-react';
+import { compressImage } from '@/utils/imageCompress';
 import { Dropzone } from '@/components/Dropzone';
 import { ProcessingStatus } from '@/components/ProcessingStatus';
 import { ImageComparison } from '@/components/ImageComparison';
@@ -13,11 +14,25 @@ export default function Home() {
   const [selectedStyle, setSelectedStyle] = useState<StyleType>('anime');
   const [strength, setStrength] = useState(0.7);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const { state, process, isProcessing, reset } = useImageProcess();
 
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedFile(file);
+  const handleFileSelect = useCallback(async (file: File) => {
+    // 如果文件大于 2MB，自动压缩
+    if (file.size > 2 * 1024 * 1024) {
+      setIsCompressing(true);
+      try {
+        const compressed = await compressImage(file);
+        setSelectedFile(compressed);
+      } catch {
+        setSelectedFile(file);
+      } finally {
+        setIsCompressing(false);
+      }
+    } else {
+      setSelectedFile(file);
+    }
   }, []);
 
   const handleClear = useCallback(() => {
@@ -83,14 +98,21 @@ export default function Home() {
             <>
               {/* 上传区域 */}
               <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-                <Dropzone
-                  onFileSelect={handleFileSelect}
-                  disabled={isProcessing}
-                  previewUrl={
-                    selectedFile ? URL.createObjectURL(selectedFile) : undefined
-                  }
-                  onClear={handleClear}
-                />
+                {isCompressing ? (
+                  <div className="flex flex-col items-center justify-center w-full aspect-video">
+                    <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                    <p className="mt-4 text-gray-600">正在压缩图片...</p>
+                  </div>
+                ) : (
+                  <Dropzone
+                    onFileSelect={handleFileSelect}
+                    disabled={isProcessing}
+                    previewUrl={
+                      selectedFile ? URL.createObjectURL(selectedFile) : undefined
+                    }
+                    onClear={handleClear}
+                  />
+                )}
               </div>
 
               {/* 风格选择 */}
